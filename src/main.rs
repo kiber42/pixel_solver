@@ -1,162 +1,238 @@
-const GRID : usize = 10;
-const NUM_CELLS : usize = 66;
-type Line = [u8; GRID];
+const GRID : usize = 15;
+const NUM_CELLS : usize = 95;
+type Targets = [u8; GRID];
 type Sheet = [[u8; GRID]; GRID];
-type State = [[bool; GRID]; GRID];
 type Assignment = [i8; NUM_CELLS];
 
+use std::collections::HashMap;
+
 fn main() {
-    let cells : Sheet = [
-    [ 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
-    [ 0, 0, 1, 6, 7, 7, 8, 9,10, 5],
-    [11,11,12,13,13,14,15,15,16,17],
-    [18,19,19,20,21,22,23,24,24,25],
-    [18,26,26,27,28,28,23,29,30,30],
-    [18,31,32,27,33,34,35,29,36,37],
-    [18,38,32,39,40,41,42,43,44,45],
-    [46,47,48,48,49,50,50,51,45,45],
-    [46,52,48,53,54,55,56,51,57,58],
-    [59,60,61,62,54,63,63,64,64,65]];
-    let col_counts : Line = [7, 6, 6, 4, 3, 5, 7, 9, 8, 6];
-    let row_counts : Line = [9, 9, 6, 4, 8, 5, 5, 2, 7, 6];
+    // let sheet : Sheet = [
+    // [ 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+    // [ 0, 0, 1, 6, 7, 7, 8, 9,10, 5],
+    // [11,11,12,13,13,14,15,15,16,17],
+    // [18,19,19,20,21,22,23,24,24,25],
+    // [18,26,26,27,28,28,23,29,30,30],
+    // [18,31,32,27,33,34,35,29,36,37],
+    // [18,38,32,39,40,41,42,43,44,45],
+    // [46,47,48,48,49,50,50,51,45,45],
+    // [46,52,48,53,54,55,56,51,57,58],
+    // [59,60,61,62,54,63,63,64,64,65]];
+    // let col_counts : Targets = [7, 6, 6, 4, 3, 5, 7, 9, 8, 6];
+    // let row_counts : Targets = [9, 9, 6, 4, 8, 5, 5, 2, 7, 6];
 
-    let mut assign = [-1; NUM_CELLS];
+    let sheet : Sheet = [
+    [ 0, 1, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 7],
+    [ 0, 1, 2, 8, 8, 3, 9,10,11,12,12,13,14,15,16],
+    [17,18,18,19,19, 9, 9, 9,20,21,22,13,14,16,16],
+    [17,23,23,24,24,25, 9,26,27,28,29,29,14,16,30],
+    [17,23,31,31,31,25,32,26,33,33,33,29,34,34,30],
+    [35,35,36,36,37,38,32,32,39,39,39,34,34,40,30],
+    [35,41,42,43,37,44,44,45,45,46,47,48,49,40,50],
+    [51,41,52,43,53,53,54,54,55,55,56,56,56,57,50],
+    [51,58,59,60,60,53,54,54,61,61,61,62,62,63,50],
+    [64,65,66,67,68,68,68,69,70,71,71,72,73,63,74],
+    [64,65,75,75,75,76,76,69,70,70,77,77,73,63,74],
+    [78,79,80,80,80,81,81,69,82,83,83,84,85,85,74],
+    [78,79,79,80,80,81,86,86,82,82,83,84,85,85,87],
+    [78,78,79,88,89,86,86,86,90,82,90,91,91,92,87],
+    [78,78,79,93,93,93,94,94,90,90,90,91,91,91,87]];
+    let col_counts : Targets = [8, 6, 10, 5, 4, 4, 7, 4, 7, 6, 6, 5, 10, 7, 2];
+    let row_counts : Targets = [5, 11, 12, 3, 9, 8, 4, 8, 6, 3, 2, 2, 5, 6, 7];
 
-    solve(cells, assign, col_counts, row_counts);
+    solve(sheet, [-1; NUM_CELLS], col_counts, row_counts);
 
     println!("Done!");
-//    println!("Puzzle solved? {}", is_solved(fill, col_counts, row_counts));
 }
 
-fn apply(assign: Assignment, sheet: Sheet) -> State
+fn solve(sheet: Sheet, assignment: Assignment, cols: Targets, rows: Targets) -> bool
 {
-    let mut state : State = [[false; GRID]; GRID];
-    for row in 0..GRID
+    match get_state(sheet, assignment, cols, rows)
     {
-        for col in 0..GRID
-        {
-            state[row][col] = assign[sheet[row][col] as usize] > 0;
-        }
+        GameState::Solved => return true,
+        GameState::Impossible => return false,
+        _ => {}
     }
-    return state;
-}
 
-fn apply_inverse(assign: Assignment, sheet: Sheet) -> State
-{
-    let mut state : State = [[false; GRID]; GRID];
-    for row in 0..GRID
-    {
-        for col in 0..GRID
-        {
-            state[row][col] = assign[sheet[row][col] as usize] != 0;
-        }
-    }
-    return state;
-}
+	let mut assignment = improve(sheet, assignment, cols, rows);
+    print_solution(sheet, assignment); // for debugging
 
-fn solve(cells: Sheet, assign: Assignment, cols: Line, rows: Line) -> bool
-{
-	let assign = improve(cells, assign, cols, rows);
-    let fill = apply(assign, cells);
-    if is_solved(fill, cols, rows)
+    if let Some(cell) = (0..NUM_CELLS).find(|&x| assignment[x] == -1)
     {
-        print_solution(fill);
-        let assign : Vec<bool> = assign.iter().map(|x| x > &0).collect();
-        println!("Assignment: {:?}", assign);
-        return true;
-    }
-    if is_too_much(fill, cols, rows)
-    {
-        return false;
-    }
-    let fill_inverse = apply_inverse(assign, cells);
-    if !is_still_possible(fill_inverse, cols, rows)
-    {
-        return false;
-    }
-//    let cell_max = cells.iter().map(|col| col.iter().max().unwrap()).max().unwrap();
-//    for cell in 0..=*cell_max as usize
-    for cell in 0..NUM_CELLS
-    {
-        if assign[cell] == -1
-        {
-            let mut assign = assign;
-            assign[cell] = 1;
-            let result = solve(cells, assign, cols, rows);
-            if result { return true; }
-            assign[cell] = 0;
-            let result = solve(cells, assign, cols, rows);
-            if result { return true; }
-        }
-    }
-    return false;
-}
-
-fn improve(cells: Sheet, assign: Assignment, cols: Line, rows: Line) -> Assignment
-{
-// TODO
-	return assign;
-}
-
-fn is_solved(fill: State, cols: Line, rows: Line) -> bool
-{
-    for a in 0..GRID
-    {
-        let mut r_count = 0;
-        let mut c_count = 0;
-        for b in 0..GRID
-        {
-            if fill[a][b] { r_count += 1; }
-            if fill[b][a] { c_count += 1; }
-        }
-        if r_count != rows[a] { return false; }
-        if c_count != cols[a] { return false; }
-    }
+        assignment[cell] = 1;
+        let result = solve(sheet, assignment, cols, rows);
+        if result { return true; }
+        assignment[cell] = 0;
+        return solve(sheet, assignment, cols, rows);
+    }    
     return true;
 }
 
-fn is_too_much(fill: State, cols: Line, rows: Line) -> bool
+fn improve(sheet: Sheet, assignment: Assignment, col_targets: Targets, row_targets: Targets) -> Assignment
 {
-    for a in 0..GRID
+    let mut assignment = assignment;
+    loop
     {
-        let mut r_count = 0;
-        let mut c_count = 0;
-        for b in 0..GRID
+        let mut changed_any = false;
+        for r in 0..GRID
         {
-            if fill[a][b] { r_count += 1; }
-            if fill[b][a] { c_count += 1; }
+            let (rows_min, rows_max, _, _) = get_min_max_line_counts(sheet, assignment);
+            println!("Row {}: Target = {}, current range = {} - {}", r, row_targets[r], rows_min[r], rows_max[r]);
+            print_solution(sheet, assignment);
+            assert!(get_state(sheet, assignment, col_targets, row_targets) != GameState::Impossible);
+            let mut to_fill = row_targets[r] - rows_min[r];
+            let mut to_clear = rows_max[r] - row_targets[r];
+            println!("To fill: {}, to clear: {}", to_fill, to_clear);
+            // determine which cells are in this row and how many squares they cover
+            let mut cell_sizes_in_row : HashMap<u8, u8> = HashMap::new();
+            for c in 0..GRID
+            {
+                let cell = sheet[r][c];
+                *cell_sizes_in_row.entry(cell).or_insert(0) += 1;
+            }
+            loop 
+            {
+                let mut changed = false;
+                for (index, count) in cell_sizes_in_row.iter()
+                {
+                    let index = *index as usize;
+                    // only work on cells that have not been assigned "empty" or "filled" yet
+                    if assignment[index] != -1 { continue; }
+                    if count > &to_clear
+                    {
+                        assignment[index] = 1;
+                        changed_any = true;
+                        changed = true;
+                        to_fill -= count;
+                        println!("Setting {} to FILLED", index);
+                    }
+                    else if count > &to_fill
+                    {
+                        assignment[index] = 0;
+                        changed_any = true;
+                        changed = true;
+                        to_clear -= count;
+                        println!("Setting {} to EMPTY", index);
+                    }
+                }
+                if !changed { break; }
+            }
         }
-        if r_count > rows[a] { return true; }
-        if c_count > cols[a] { return true; }
+        if !changed_any { break; }
     }
-    return false;
+    // TODO implement transpose function and re-use above code
+    loop
+    {
+        let mut changed_any = false;
+        for c in 0..GRID
+        {
+            let (_, _, cols_min, cols_max) = get_min_max_line_counts(sheet, assignment);
+            println!("Column {}: Target = {}, current range = {} - {}", c, col_targets[c], cols_min[c], cols_max[c]);
+            print_solution(sheet, assignment);
+            assert!(get_state(sheet, assignment, col_targets, row_targets) != GameState::Impossible);
+            let mut to_fill = col_targets[c] - cols_min[c];
+            let mut to_clear = cols_max[c] - col_targets[c];
+            println!("To fill: {}, to clear: {}", to_fill, to_clear);
+            // determine which cells are in this columns and how many squares they cover
+            let mut cell_sizes_in_col : HashMap<u8, u8> = HashMap::new();
+            for r in 0..GRID
+            {
+                let cell = sheet[r][c];
+                *cell_sizes_in_col.entry(cell).or_insert(0) += 1;
+            }
+            loop 
+            {
+                let mut changed = false;
+                for (index, count) in cell_sizes_in_col.iter()
+                {
+                    let index = *index as usize;
+                    // only work on cells that have not been assigned "empty" or "filled" yet
+                    if assignment[index] != -1 { continue; }
+                    if count > &to_clear
+                    {
+                        assignment[index] = 1;
+                        changed_any = true;
+                        changed = true;
+                        to_fill -= count;
+                        println!("Setting {} to FILLED", index);
+                    }
+                    else if count > &to_fill
+                    {
+                        assignment[index] = 0;
+                        changed_any = true;
+                        changed = true;
+                        to_clear -= count;
+                        println!("Setting {} to EMPTY", index);
+                    }
+                }
+                if !changed { break; }
+            }
+        }
+        if !changed_any { break; }
+    }
+	return assignment;
 }
 
-fn is_still_possible(fill: State, cols: Line, rows: Line) -> bool
+fn get_min_max_line_counts(sheet: Sheet, assignment: Assignment) -> (Targets, Targets, Targets, Targets)
 {
-    for a in 0..GRID
+    let mut rows_min = [0; GRID];
+    let mut cols_min = [0; GRID];
+    let mut rows_max = [GRID as u8; GRID];
+    let mut cols_max = [GRID as u8; GRID];
+    for row in 0..GRID
     {
-        let mut r_count = 0;
-        let mut c_count = 0;
-        for b in 0..GRID
-        {
-            if fill[a][b] { r_count += 1; }
-            if fill[b][a] { c_count += 1; }
+        for col in 0..GRID
+        {   
+            match assignment[sheet[row][col] as usize]
+            {
+                0 => { rows_max[row] -= 1; cols_max[col] -= 1; },
+                1 => { rows_min[row] += 1; cols_min[col] += 1; },
+                _ => {}
+            }
         }
-        if r_count < rows[a] { return false; }
-        if c_count < cols[a] { return false; }
     }
-    return true;
+    return (rows_min, rows_max, cols_min, cols_max);
 }
 
-fn print_solution(fill: State)
+#[derive(PartialEq)]
+enum GameState
+{
+    Solved,
+    Impossible,
+    Undecided
+}
+
+fn get_state(sheet: Sheet, assignment: Assignment, col_targets: Targets, row_targets: Targets) -> GameState
+{
+    let (r_min, r_max, c_min, c_max) = get_min_max_line_counts(sheet, assignment);
+    for index in 0..GRID
+    {
+        if r_min[index] > row_targets[index] || r_max[index] < row_targets[index] ||
+          c_min[index] > col_targets[index] || c_max[index] < col_targets[index]
+        {
+            println!("Col {}: Target = {}, current range = {} - {}", index, col_targets[index], c_min[index], c_max[index]);
+            println!("Row {}: Target = {}, current range = {} - {}", index, row_targets[index], r_min[index], r_max[index]);
+            return GameState::Impossible;
+        }
+    }
+    for index in 0..GRID
+    {
+        if r_min[index] != r_max[index] || c_min[index] != c_max[index] { return GameState::Undecided; }
+    }
+    return GameState::Solved;
+}
+
+fn print_solution(sheet: Sheet, assignment: Assignment)
 {
     for r in 0..GRID
     {
         for c in 0..GRID
         {
-            if fill[r][c] { print!("<>"); }
-            else { print!("__"); }
+            match assignment[sheet[r][c] as usize] {
+                1 => print!("<>"),
+                0 => print!("__"),
+                _ => print!("??")
+            }
         }
         println!();
     }
