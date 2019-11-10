@@ -77,7 +77,23 @@ enum CellState
 }
 type Assignment = Vec<CellState>;
 
-use std::collections::HashMap;
+#[derive(PartialEq)]
+enum Target
+{
+    Row(usize),
+    Col(usize)
+}
+
+use std::fmt;
+impl fmt::Display for Target {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self
+        {
+            Target::Row(r) => write!(f, "row {}", r + 1),
+            Target::Col(c) => write!(f, "column {}", c + 1),
+        }
+    }
+}
 
 fn main() {
     if PUZZLE.run_solver() { println!("Puzzle solved."); }
@@ -136,77 +152,43 @@ impl Puzzle
             let mut changed_any = false;
             for row_or_col in 0..GRID
             {
-                if self.get_state(assignment) == GameState::Impossible { return; }
-                if self.improve_row(assignment, row_or_col) { changed_any = true; }
-                if self.improve_col(assignment, row_or_col) { changed_any = true; }
+                if self.get_state(assignment) == GameState::Impossible { return; }                
+                if self.improve_once(assignment, Target::Row(row_or_col)) { changed_any = true; }
+                if self.improve_once(assignment, Target::Col(row_or_col)) { changed_any = true; }
             }
             if !changed_any { break; }
         }
     }
 
-    fn improve_row(&self, assignment: &mut Assignment, row : usize) -> bool
+    fn improve_once(&self, assignment: &mut Assignment, row_or_col : Target) -> bool
     {
-        // determine which cells are in this row and how many squares they cover
-        let mut cell_sizes_in_row : HashMap<u8, u8> = HashMap::new();
-        for col in 0..GRID
+        // determine which cells are in this row or column and how many squares they cover
+        use std::collections::HashMap;
+        let mut cell_sizes_in_target : HashMap<u8, u8> = HashMap::new();
+        for other in 0..GRID
         {
-            let cell = self.sheet[row][col];
-            *cell_sizes_in_row.entry(cell).or_insert(0) += 1;
-        }
-
-        let (row_min, row_max) = self.get_range_row(assignment, row);
-        let mut to_fill = self.row_counts[row] - row_min;
-        let mut to_clear = row_max - self.row_counts[row];
-
-        let mut changed_any = false;
-        loop 
-        {
-            let mut changed = false;
-            for (&index, &count) in cell_sizes_in_row.iter()
+            let cell = match row_or_col
             {
-                let index = index as usize;
-                if assignment[index] != CellState::Undecided { continue; }
-                if count > to_fill && count > to_clear { return changed_any; }
-                if count > to_clear
-                {
-                    assignment[index] = CellState::Filled;
-                    changed = true;
-                    to_fill -= count;
-//                    println!("Setting {} to FILLED (deduced)", index);
-                }
-                else if count > to_fill
-                {
-                    assignment[index] = CellState::Empty;
-                    changed = true;
-                    to_clear -= count;
-//                    println!("Setting {} to EMPTY (deduced)", index);
-                }
-            }
-            if !changed { break; }
-            changed_any = true;
+                Target::Row(r) => self.sheet[r][other],
+                Target::Col(c) => self.sheet[other][c]
+            };
+            *cell_sizes_in_target.entry(cell).or_insert(0) += 1;
         }
-        changed_any
-    }
 
-    fn improve_col(&self, assignment: &mut Assignment, col : usize) -> bool
-    {
-        // determine which cells are in this column and how many squares they cover
-        let mut cell_sizes_in_col : HashMap<u8, u8> = HashMap::new();
-        for row in 0..GRID
+        let (min, max) = self.get_range(assignment, &row_or_col);
+        let current = match row_or_col
         {
-            let cell = self.sheet[row][col];
-            *cell_sizes_in_col.entry(cell).or_insert(0) += 1;
-        }
-
-        let (col_min, col_max) = self.get_range_col(assignment, col);
-        let mut to_fill = self.col_counts[col] - col_min;
-        let mut to_clear = col_max - self.col_counts[col];
+            Target::Row(r) => self.row_counts[r],
+            Target::Col(c) => self.col_counts[c]
+        };
+        let mut to_fill = current - min;
+        let mut to_clear = max - current;
 
         let mut changed_any = false;
         loop 
         {
             let mut changed = false;
-            for (&index, &count) in cell_sizes_in_col.iter()
+            for (&index, &count) in cell_sizes_in_target.iter()
             {
                 let index = index as usize;
                 if assignment[index] != CellState::Undecided { continue; }
@@ -238,29 +220,18 @@ impl Puzzle
         true
     }
 
-    fn get_range_row(&self, assignment: &Assignment, row: usize) -> (u8, u8)
+    fn get_range(&self, assignment: &Assignment, row_or_col: &Target) -> (u8, u8)
     {
         let mut min = 0;
         let mut max = GRID as u8;
-        for col in 0..GRID
+        for other in 0..GRID
         {   
-            match assignment[self.sheet[row][col] as usize]
+            let cell = match row_or_col
             {
-                CellState::Empty => { max -= 1; }
-                CellState::Filled => { min += 1; }
-                CellState::Undecided => {}
-            }
-        }
-        (min, max)
-    }
-
-    fn get_range_col(&self, assignment: &Assignment, col: usize) -> (u8, u8)
-    {
-        let mut min = 0;
-        let mut max = GRID as u8;
-        for row in 0..GRID
-        {   
-            match assignment[self.sheet[row][col] as usize]
+                Target::Row(r) => self.sheet[*r][other],
+                Target::Col(c) => self.sheet[other][*c]
+            };
+            match assignment[cell as usize]
             {
                 CellState::Empty => { max -= 1; }
                 CellState::Filled => { min += 1; }
@@ -273,29 +244,20 @@ impl Puzzle
     fn get_state(&self, assignment: &Assignment) -> GameState
     {
         let mut decided = true;
-        for row in 0..GRID
+        for index in 0..GRID
         {
-            let (min, max) = self.get_range_row(assignment, row);
-            let target = self.row_counts[row];
-            if min > target || max < target
+            for (target, goal) in &[(Target::Row(index), self.row_counts[index]),
+                                    (Target::Col(index), self.col_counts[index])]
             {
-                println!("Current state unsolvable: row {}, the target {} is not in the possible range {} - {}",
-                  row + 1, target, min, max);
-                return GameState::Impossible;
+                let (min, max) = self.get_range(assignment, &target);
+                if min > *goal || max < *goal
+                {
+                    println!("Current state unsolvable: {}, target count {} is not in the possible range {} - {}",
+                        target, goal, min, max);
+                    return GameState::Impossible;
+                }
+                if min != max { decided = false; }
             }
-            if min != max { decided = false; }
-        }
-        for col in 0..GRID
-        {
-            let (min, max) = self.get_range_col(assignment, col);
-            let target = self.col_counts[col];
-            if min > target || max < target
-            {
-                println!("Current state unsolvable: column {}, the target {} is not in the possible range {} - {}",
-                  col + 1, target, min, max);
-                return GameState::Impossible;
-            }
-            if min != max { decided = false; }
         }
         if decided { GameState::Solved } else { GameState::Undecided }
     }
