@@ -119,7 +119,7 @@ impl Puzzle
     {
         self.improve(&mut assignment);
         println!("Deduced:");
-        self.print(&assignment);
+        self.print(&assignment, true);
 
         match self.get_state(&assignment)
         {
@@ -130,14 +130,14 @@ impl Puzzle
 
         if let Some((index,_)) = assignment.iter().enumerate().find(|(_,&x)| x == CellState::Undecided)
         {
-            assignment[index] = CellState::Filled;
             println!("Setting {} to FILLED (guess)", index);
-            self.print(&assignment); // for debugging
+            self.print(&assignment, false); // for debugging
+
+            assignment[index] = CellState::Filled;
             if self.solve(assignment.to_vec()) { return true; }
 
             println!("Setting {} to EMPTY (alternative was ruled out)", index);
             assignment[index] = CellState::Empty;
-            self.print(&assignment); // for debugging
             return self.solve(assignment);
         }
         panic!("Should not get here.");
@@ -262,7 +262,103 @@ impl Puzzle
         if decided { GameState::Solved } else { GameState::Undecided }
     }
 
-    fn print(&self, assignment: &Assignment)
+    fn print(&self, assignment: &Assignment, borders: bool)
+    {
+        if borders { self.print_borders(assignment); }
+        else { self.print_plain(assignment); }
+    }
+
+    fn print_borders(&self, assignment: &Assignment)
+    {
+        print!("   ");
+        for c in 0..GRID
+        {
+            print!("{:3}", self.col_counts[c]);
+        }
+        println!();
+        println!();
+
+        for r in 0..GRID
+        {
+            print!("{:3} ", self.row_counts[r]);
+            for c in 0..GRID
+            {
+                let cell = self.sheet[r][c] as usize;
+                match assignment[cell] {
+                    CellState::Filled => print!("██"),
+                    CellState::Empty => print!("  "),
+                    CellState::Undecided => print!("{:2}", cell)
+                }
+                if c < GRID - 1
+                {
+                    let right = self.sheet[r][c+1] as usize;
+                    if cell == right { print!(" "); }
+                    else { print!("│"); }
+                }
+            }
+            println!();
+            print!("    ");
+            if r < GRID - 1
+            {
+                for c in 0..GRID
+                {
+                    let cell = self.sheet[r][c] as usize;
+                    let below = self.sheet[r+1][c] as usize;
+                    if cell == below { print!("  "); }
+                    else { print!("──"); }
+                    if c < GRID - 1
+                    {
+                        let right = self.sheet[r][c+1] as usize;
+                        let diag = self.sheet[r+1][c+1] as usize;
+                        if cell == below
+                        {
+                            if cell == right
+                            {
+                                if right == diag { print!(" "); }
+                                else { print!("┌"); }
+                            }
+                            else
+                            {
+                                if right == diag { print!("│"); }
+                                else
+                                {
+                                    if below == diag { print!("└"); }
+                                    else { print!("├"); }
+                                }
+                            }
+                        }
+                        else {
+                            if cell == right
+                            {
+                                if right == diag { print!("┐"); }
+                                else
+                                {
+                                    if below == diag { print!("─"); }
+                                    else { print!("┬"); }
+                                }
+                            }
+                            else
+                            {
+                                if right == diag
+                                {
+                                    if below == diag { print!("┘"); }
+                                    else { print!("┤"); }
+                                }
+                                else
+                                {
+                                    if below == diag { print!("┴"); }
+                                    else { print!("┼"); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            println!();
+        }
+    }
+
+    fn print_plain(&self, assignment: &Assignment)
     {
         print!("   ");
         for c in 0..GRID
@@ -277,13 +373,12 @@ impl Puzzle
             for c in 0..GRID
             {
                 match assignment[self.sheet[r][c] as usize] {
-                    CellState::Filled => print!("<>"),
-                    CellState::Empty => print!("__"),
+                    CellState::Filled => print!("██"),
+                    CellState::Empty => print!("  "),
                     CellState::Undecided => print!("??")
                 }
             }
             println!();
         }
     }
-
 }
