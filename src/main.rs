@@ -214,8 +214,13 @@ impl Puzzle
 
     fn validate(&self) -> bool
     {
-        // TODO: check whether target counts are consistent
-        true
+        let col_counts = self.col_counts.iter();
+        let row_counts = self.row_counts.iter();
+        let cols_sum : usize = col_counts.map(|&u| u as usize).sum();
+        let rows_sum : usize = row_counts.map(|&u| u as usize).sum();
+        cols_sum == rows_sum &&
+        self.col_counts.iter().max().unwrap() <= &(GRID as u8) &&
+        self.row_counts.iter().max().unwrap() <= &(GRID as u8)
     }
 
     fn get_range(&self, assignment: &Assignment, row_or_col: &Target) -> (u8, u8)
@@ -262,11 +267,11 @@ impl Puzzle
 
     fn print(&self, assignment: &Assignment, borders: bool)
     {
-        if borders { self.print_borders(assignment); }
+        if borders { self.print_with_borders(assignment); }
         else { self.print_plain(assignment); }
     }
 
-    fn print_borders(&self, assignment: &Assignment)
+    fn print_with_borders(&self, assignment: &Assignment)
     {
         print!("   ");
         for c in 0..GRID
