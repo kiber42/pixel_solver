@@ -135,7 +135,7 @@ impl Puzzle
         }
     }
 
-    fn improve_row(&self, assignment: &mut [CellState; 95], row : usize) -> bool
+    fn improve_row(&self, assignment: &mut Assignment, row : usize) -> bool
     {
         // determine which cells are in this row and how many squares they cover
         let mut cell_sizes_in_row : HashMap<u8, u8> = HashMap::new();
@@ -153,19 +153,19 @@ impl Puzzle
         loop 
         {
             let mut changed = false;
-            for (index, count) in cell_sizes_in_row.iter()
+            for (&index, &count) in cell_sizes_in_row.iter()
             {
-                let index = *index as usize;
+                let index = index as usize;
                 if assignment[index] != CellState::Undecided { continue; }
-                if count > &to_fill && count > &to_clear { return changed_any; }
-                if count > &to_clear
+                if count > to_fill && count > to_clear { return changed_any; }
+                if count > to_clear
                 {
                     assignment[index] = CellState::Filled;
                     changed = true;
                     to_fill -= count;
 //                    println!("Setting {} to FILLED (deduced)", index);
                 }
-                else if count > &to_fill
+                else if count > to_fill
                 {
                     assignment[index] = CellState::Empty;
                     changed = true;
@@ -197,19 +197,19 @@ impl Puzzle
         loop 
         {
             let mut changed = false;
-            for (index, count) in cell_sizes_in_col.iter()
+            for (&index, &count) in cell_sizes_in_col.iter()
             {
-                let index = *index as usize;
+                let index = index as usize;
                 if assignment[index] != CellState::Undecided { continue; }
-                if count > &to_fill && count > &to_clear { return changed_any; }
-                if count > &to_clear
+                if count > to_fill && count > to_clear { return changed_any; }
+                if count > to_clear
                 {
                     assignment[index] = CellState::Filled;
                     changed = true;
                     to_fill -= count;
 //                    println!("Setting {} to FILLED (deduced)", index);
                 }
-                else if count > &to_fill
+                else if count > to_fill
                 {
                     assignment[index] = CellState::Empty;
                     changed = true;
