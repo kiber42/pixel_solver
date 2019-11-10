@@ -1,6 +1,6 @@
 [package]
 name = "pixel_solver"
-version = "0.1.0"
+version = "0.5.0"
 authors = ["Kilian Brendel <kilian.brendel@posteo.de>"]
 edition = "2018"
 
