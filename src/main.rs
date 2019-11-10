@@ -112,10 +112,13 @@ impl Puzzle
         let max_cell_per_row = self.sheet.iter().map(|row| row.iter().max().unwrap());
         let max_cell = *max_cell_per_row.max().unwrap() as usize;
         let assignment = vec![CellState::Undecided; max_cell + 1];
-        self.solve(assignment)
+        let mut sequence : Vec<(u8,CellState)> = Vec::new();
+        self.solve(assignment, &mut sequence)
+
+        // TODO: Print path to solution
     }
 
-    fn solve(&self, mut assignment: Assignment) -> bool
+    fn solve(&self, mut assignment: Assignment, sequence: &mut Vec<(u8,CellState)>) -> bool
     {
         self.improve(&mut assignment);
         println!("Deduced:");
@@ -134,11 +137,20 @@ impl Puzzle
             self.print(&assignment, true); // for debugging
 
             assignment[index] = CellState::Filled;
-            if self.solve(assignment.to_vec()) { return true; }
+            if self.solve(assignment.to_vec(), sequence)
+            {
+                sequence.push((index as u8, CellState::Filled));
+                return true;
+            }
 
             println!("Setting {} to EMPTY (alternative was ruled out)", index);
             assignment[index] = CellState::Empty;
-            return self.solve(assignment);
+            if self.solve(assignment, sequence)
+            {
+                sequence.push((index as u8, CellState::Empty));
+                return true;
+            }
+            return false;
         }
         panic!("Should not get here.");
     }
@@ -286,17 +298,16 @@ impl Puzzle
             print!("{:3} ", self.row_counts[r]);
             for c in 0..GRID
             {
-                let cell = self.sheet[r][c] as usize;
-                match assignment[cell] {
+                let cell = self.sheet[r][c];
+                match assignment[cell as usize] {
                     CellState::Filled => print!("██"),
                     CellState::Empty => print!("  "),
                     CellState::Undecided => print!("{:2}", cell)
                 }
                 if c < GRID - 1
                 {
-                    let right = self.sheet[r][c+1] as usize;
-                    if cell == right { print!(" "); }
-                    else { print!("│"); }
+                    let right = self.sheet[r][c+1];
+                    print!("{}", divider_horizontal(cell, right));
                 }
             }
             println!();
@@ -305,55 +316,14 @@ impl Puzzle
             {
                 for c in 0..GRID
                 {
-                    let cell = self.sheet[r][c] as usize;
-                    let below = self.sheet[r+1][c] as usize;
-                    if cell == below { print!("  "); }
-                    else { print!("──"); }
+                    let cell = self.sheet[r][c];
+                    let below = self.sheet[r+1][c];
+                    print!("{}", divider_vertical(cell, below));
                     if c < GRID - 1
                     {
-                        let right = self.sheet[r][c+1] as usize;
-                        let diag = self.sheet[r+1][c+1] as usize;
-                        if cell == below
-                        {
-                            if cell == right
-                            {
-                                if right == diag { print!(" "); }
-                                else { print!("┌"); }
-                            }
-                            else
-                            {
-                                if right == diag { print!("│"); }
-                                else
-                                {
-                                    if below == diag { print!("└"); }
-                                    else { print!("├"); }
-                                }
-                            }
-                        }
-                        else {
-                            if cell == right
-                            {
-                                if right == diag { print!("┐"); }
-                                else
-                                {
-                                    if below == diag { print!("─"); }
-                                    else { print!("┬"); }
-                                }
-                            }
-                            else
-                            {
-                                if right == diag
-                                {
-                                    if below == diag { print!("┘"); }
-                                    else { print!("┤"); }
-                                }
-                                else
-                                {
-                                    if below == diag { print!("┴"); }
-                                    else { print!("┼"); }
-                                }
-                            }
-                        }
+                        let right = self.sheet[r][c+1];
+                        let diag = self.sheet[r+1][c+1];
+                        print!("{}", divider_junction(cell, right, below, diag));
                     }
                 }
             }
@@ -384,4 +354,25 @@ impl Puzzle
             println!();
         }
     }
+}
+
+fn divider_horizontal(cell: u8, right: u8) -> char
+{
+    if cell == right { ' ' } else { '│' }
+}
+
+fn divider_vertical(cell: u8, below: u8) -> String
+{
+    (if cell == below { "  " } else { "──" }).to_string()
+}
+
+fn divider_junction(cell: u8, right: u8, below: u8, diag: u8) -> char
+{
+    const DIVIDERS : [char; 16] = [' ', ' ', ' ', '│', ' ', '┘', '┐', '┤', ' ', '└', '┌', '├', '─', '┴', '┬', '┼'];
+    let top    = if cell != right { 1 } else { 0 };
+    let bottom = if below != diag { 2 } else { 0 };
+    let left   = if cell != below { 4 } else { 0 };
+    let right  = if right != diag { 8 } else { 0 };
+    let index = top + bottom + left + right;
+    DIVIDERS[index]
 }
