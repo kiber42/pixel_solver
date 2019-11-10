@@ -5,7 +5,6 @@ struct Puzzle {
 }
 
 const GRID : usize = 15;
-const NUM_CELLS : usize = 95;
 const PUZZLE : Puzzle = Puzzle {
     sheet : [
         [ 0, 1, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 7],
@@ -29,7 +28,6 @@ const PUZZLE : Puzzle = Puzzle {
 
 /*
 const GRID : usize = 10;
-const NUM_CELLS : usize = 66;
 const PUZZLE : Sheet = [
 [ 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
 [ 0, 0, 1, 6, 7, 7, 8, 9,10, 5],
@@ -47,7 +45,6 @@ const PUZZLE_ROW_COUNTS : Targets = [9, 9, 6, 4, 8, 5, 5, 2, 7, 6];
 
 /*
 const GRID : usize = 5;
-const NUM_CELLS : usize = 12;
 const PUZZLE : Sheet = [
 [ 0, 1, 2, 2, 3],
 [ 0, 1, 2, 4, 4],
@@ -74,22 +71,30 @@ enum CellState
     Empty,
     Undecided
 }
-type Assignment = [CellState; NUM_CELLS];
+type Assignment = Vec<CellState>;
 
 use std::collections::HashMap;
 
 fn main() {
-    if !PUZZLE.validate()
-    {
-        panic!("Puzzle definition is invalid.");
-    }
-
-    if PUZZLE.solve([CellState::Undecided; NUM_CELLS]) { println!("Puzzle solved."); }
+    if PUZZLE.run_solver() { println!("Puzzle solved."); }
     else { println!("Puzzle is impossible."); }
 }
 
 impl Puzzle
 {
+    fn run_solver(&self) -> bool
+    {
+        if !self.validate()
+        {
+            panic!("Puzzle definition is invalid.");
+        }
+    
+        let max_cell_per_row = self.sheet.iter().map(|row| row.iter().max().unwrap());
+        let max_cell = *max_cell_per_row.max().unwrap() as usize;
+        let assignment = vec![CellState::Undecided; max_cell + 1];
+        self.solve(assignment)
+    }
+
     fn solve(&self, mut assignment: Assignment) -> bool
     {
         self.improve(&mut assignment);
@@ -103,15 +108,15 @@ impl Puzzle
             _ => {}
         }
 
-        if let Some(cell) = (0..NUM_CELLS).find(|&x| assignment[x] == CellState::Undecided)
+        if let Some((index,_)) = assignment.iter().enumerate().find(|(_,&x)| x == CellState::Undecided)
         {
-            assignment[cell] = CellState::Filled;
-            println!("Setting {} to FILLED (guess)", cell);
+            assignment[index] = CellState::Filled;
+            println!("Setting {} to FILLED (guess)", index);
             self.print(&assignment); // for debugging
-            if self.solve(assignment) { return true; }
+            if self.solve(assignment.to_vec()) { return true; }
 
-            println!("Setting {} to EMPTY (alternative was ruled out)", cell);
-            assignment[cell] = CellState::Empty;
+            println!("Setting {} to EMPTY (alternative was ruled out)", index);
+            assignment[index] = CellState::Empty;
             self.print(&assignment); // for debugging
             return self.solve(assignment);
         }
@@ -225,7 +230,7 @@ impl Puzzle
 
     fn validate(&self) -> bool
     {
-        // TODO: check whether NUM_CELLS is correct and target counts are consistent
+        // TODO: check whether target counts are consistent
         true
     }
 
