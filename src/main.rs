@@ -131,7 +131,7 @@ impl Puzzle
         if let Some((index,_)) = assignment.iter().enumerate().find(|(_,&x)| x == CellState::Undecided)
         {
             println!("Setting {} to FILLED (guess)", index);
-            self.print(&assignment, false); // for debugging
+            self.print(&assignment, true); // for debugging
 
             assignment[index] = CellState::Filled;
             if self.solve(assignment.to_vec()) { return true; }
@@ -149,14 +149,14 @@ impl Puzzle
         {
             // TODO: Instead of iterating over all rows and columns like this,
             // keep a list of rows and cols that were recently changed.
-            let mut changed_any = false;
+            let mut shall_continue = false;
             for row_or_col in 0..GRID
             {
                 if self.get_state(assignment) == GameState::Impossible { return; }                
-                if self.improve_once(assignment, Target::Row(row_or_col)) { changed_any = true; }
-                if self.improve_once(assignment, Target::Col(row_or_col)) { changed_any = true; }
+                if self.improve_once(assignment, Target::Row(row_or_col)) { shall_continue = true; }
+                if self.improve_once(assignment, Target::Col(row_or_col)) { shall_continue = true; }
             }
-            if !changed_any { break; }
+            if !shall_continue { break; }
         }
     }
 
@@ -184,7 +184,7 @@ impl Puzzle
         let mut to_fill = current - min;
         let mut to_clear = max - current;
 
-        let mut changed_any = false;
+        let mut shall_continue = false;
         loop 
         {
             let mut changed = false;
@@ -192,26 +192,24 @@ impl Puzzle
             {
                 let index = index as usize;
                 if assignment[index] != CellState::Undecided { continue; }
-                if count > to_fill && count > to_clear { return changed_any; }
+                if count > to_fill && count > to_clear { return false; }
                 if count > to_clear
                 {
                     assignment[index] = CellState::Filled;
                     changed = true;
                     to_fill -= count;
-//                    println!("Setting {} to FILLED (deduced)", index);
                 }
                 else if count > to_fill
                 {
                     assignment[index] = CellState::Empty;
                     changed = true;
                     to_clear -= count;
-//                    println!("Setting {} to EMPTY (deduced)", index);
                 }
             }
             if !changed { break; }
-            changed_any = true;
+            shall_continue = true;
         }
-        changed_any
+        shall_continue
     }
 
     fn validate(&self) -> bool
