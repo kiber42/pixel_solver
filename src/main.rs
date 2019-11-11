@@ -91,6 +91,7 @@ struct Solver
 
 fn main() {
     let solver = Solver::new(&PUZZLE);
+    PUZZLE.print(true);
     if let Some(solution) = solver.run()
     {
         for step in &solution.sequence
@@ -98,6 +99,7 @@ fn main() {
             println!("Mark {} as {:?}", step, solution.assignment[*step as usize]);
         }
         println!("Puzzle solved.");
+        PUZZLE.print_solution(&solution.assignment, false);
     }
     else { println!("Puzzle is impossible."); }
 }
@@ -175,8 +177,6 @@ impl Solver
     {
         let mut updated = partial.clone();
         self.improve(&mut updated);
-        println!("Deduced:");
-        self.puzzle.print(&updated.assignment, true);
 
         if let Some(solved) = self.puzzle.is_decided(&updated.assignment)
         {
@@ -188,7 +188,6 @@ impl Solver
             updated.sequence.push(index as u8);
             for state in &[CellState::Filled, CellState::Empty]
             {
-                println!("Assigning {} as {:?}", index, state);
                 updated.assignment[index] = *state;
                 let result = self.recurse(&updated);
                 if result.is_some() { return result; }
@@ -300,81 +299,69 @@ impl Puzzle
         if solved { Some(true) } else { None }
     }
 
-    fn print(&self, assignment: &Assignment, borders: bool)
+    fn print(&self, borders: bool)
     {
-        if borders { self.print_with_borders(assignment); }
-        else { self.print_plain(assignment); }
+        self.do_print(None, borders);
     }
 
-    fn print_with_borders(&self, assignment: &Assignment)
+    fn print_solution(&self, assignment: &Assignment, borders: bool)
     {
+        self.do_print(Some(assignment), borders);
+    }
+
+    fn do_print(&self, assignment: Option<&Assignment>, borders: bool)
+    {
+        let width = if borders { 3 } else { 2 };
         print!("   ");
         for c in 0..GRID
         {
-            print!("{:3}", self.col_counts[c]);
+            print!("{:1$}", self.col_counts[c], width);
         }
         println!();
-        println!();
+        if borders { println!(); }
 
         for r in 0..GRID
         {
-            print!("{:3} ", self.row_counts[r]);
+            print!("{:1$} ", self.row_counts[r], width);
             for c in 0..GRID
             {
                 let cell = self.sheet[r][c];
-                match assignment[cell as usize] {
-                    CellState::Filled => print!("██"),
-                    CellState::Empty => print!("  "),
-                    CellState::Undecided => print!("{:2}", cell)
+                if assignment.is_some()
+                {
+                    match assignment.unwrap()[cell as usize] {
+                        CellState::Filled => print!("██"),
+                        CellState::Empty => print!("  "),
+                        CellState::Undecided => print!("{:2}", cell)
+                    };
                 }
-                if c < GRID - 1
+                else { print!("{:2}", cell); }
+                if borders && c < GRID - 1
                 {
                     let right = self.sheet[r][c+1];
                     print!("{}", divider_horizontal(cell, right));
                 }
             }
             println!();
-            print!("    ");
-            if r < GRID - 1
+            if borders
             {
-                for c in 0..GRID
+                print!("    ");
+                if r < GRID - 1
                 {
-                    let cell = self.sheet[r][c];
-                    let below = self.sheet[r+1][c];
-                    print!("{}", divider_vertical(cell, below));
-                    if c < GRID - 1
+                    for c in 0..GRID
                     {
-                        let right = self.sheet[r][c+1];
-                        let diag = self.sheet[r+1][c+1];
-                        print!("{}", divider_junction(cell, right, below, diag));
+                        let cell = self.sheet[r][c];
+                        let below = self.sheet[r+1][c];
+                        print!("{}", divider_vertical(cell, below));
+                        if c < GRID - 1
+                        {
+                            let right = self.sheet[r][c+1];
+                            let diag = self.sheet[r+1][c+1];
+                            print!("{}", divider_junction(cell, right, below, diag));
+                        }
                     }
                 }
+                println!();
             }
-            println!();
-        }
-    }
-
-    fn print_plain(&self, assignment: &Assignment)
-    {
-        print!("   ");
-        for c in 0..GRID
-        {
-            print!("{:2}", self.col_counts[c]);
-        }
-        println!();
-
-        for r in 0..GRID
-        {
-            print!("{:2} ", self.row_counts[r]);
-            for c in 0..GRID
-            {
-                match assignment[self.sheet[r][c] as usize] {
-                    CellState::Filled => print!("██"),
-                    CellState::Empty => print!("  "),
-                    CellState::Undecided => print!("??")
-                }
-            }
-            println!();
         }
     }
 }
