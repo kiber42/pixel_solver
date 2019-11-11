@@ -102,21 +102,6 @@ fn main() {
     else { println!("Puzzle is impossible."); }
 }
 
-#[derive(PartialEq)]
-enum GameState
-{
-    Solved,
-    Impossible,
-    Undecided
-}
-
-#[derive(PartialEq)]
-enum Target
-{
-    Row(usize),
-    Col(usize)
-}
-
 impl Puzzle
 {
     fn validate(&self) -> bool
@@ -142,6 +127,13 @@ impl Solution
             sequence: Vec::new()
         }
     }
+}
+
+#[derive(PartialEq)]
+enum Target
+{
+    Row(usize),
+    Col(usize)
 }
 
 impl Solver
@@ -186,11 +178,9 @@ impl Solver
         println!("Deduced:");
         self.puzzle.print(&updated.assignment, true);
 
-        match self.puzzle.get_state(&updated.assignment)
+        if let Some(solved) = self.puzzle.is_decided(&updated.assignment)
         {
-            GameState::Solved => return Some(updated),
-            GameState::Impossible => return None,
-            _ => {}
+            return if solved { Some(updated) } else { None };
         }
 
         if let Some((index,_)) = updated.assignment.iter().enumerate().find(|(_,&x)| x == CellState::Undecided)
@@ -294,20 +284,20 @@ impl Puzzle
         (min, max)
     }
 
-    fn get_state(&self, assignment: &Assignment) -> GameState
+    fn is_decided(&self, assignment: &Assignment) -> Option<bool>
     {
-        let mut decided = true;
+        let mut solved = true;
         for index in 0..GRID
         {
             for (target, goal) in &[(Target::Row(index), self.row_counts[index]),
                                     (Target::Col(index), self.col_counts[index])]
             {
                 let (min, max) = self.get_range(assignment, &target);
-                if min > *goal || max < *goal { return GameState::Impossible; }
-                if min != max { decided = false; }
+                if min > *goal || max < *goal { return Some(false); }
+                if min != max { solved = false; }
             }
         }
-        if decided { GameState::Solved } else { GameState::Undecided }
+        if solved { Some(true) } else { None }
     }
 
     fn print(&self, assignment: &Assignment, borders: bool)
