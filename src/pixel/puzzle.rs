@@ -77,6 +77,13 @@ impl Puzzle
         self.row_counts.iter().max().unwrap() <= &(GRID as u8)
     }
 
+    pub fn num_cells(&self) -> u8
+    {
+        let max_cell_per_row = self.sheet.iter().map(|row| row.iter().max().unwrap());
+        let max_cell = *max_cell_per_row.max().unwrap();
+        max_cell + 1
+    }
+
     pub fn get_range(&self, assignment: &Assignment, row_or_col: &Target) -> (u8, u8)
     {
         let mut min = 0;

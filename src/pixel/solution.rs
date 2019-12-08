@@ -24,10 +24,8 @@ impl Solution
 {
     pub fn new(puzzle: &Puzzle) -> Solution
     {
-        let max_cell_per_row = puzzle.sheet.iter().map(|row| row.iter().max().unwrap());
-        let max_cell = *max_cell_per_row.max().unwrap() as usize;
         Solution {
-            assignment: vec![CellState::Undecided; max_cell + 1],
+            assignment: vec![CellState::Undecided; puzzle.num_cells() as usize],
             sequence: Vec::new()
         }
     }
