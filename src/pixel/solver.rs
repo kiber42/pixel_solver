@@ -130,6 +130,7 @@ impl Solver
         loop
         {
             let mut seq = Vec::new();
+            // some randomness is introduced here since a HashMap is used
             for (&index, &count) in cell_sizes_in_target
             {
                 let ref mut assign = partial.assignment[index as usize];
