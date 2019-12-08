@@ -2,7 +2,6 @@ use super::puzzle::{Puzzle, GRID};
 use super::solution::{CellState, Solution};
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 // holds pre-computed structures used throughout the solving process
 pub struct Solver
@@ -13,7 +12,7 @@ pub struct Solver
     affected_targets_by_cell: Vec<Vec<Target>>,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum Target
 {
     Row(usize),
@@ -91,32 +90,26 @@ impl Solver
 
     fn improve(&self, partial: &mut Solution) -> bool
     {
-        let mut targets = HashSet::new();
+        let mut targets = Vec::new();
         for row_or_col in 0..GRID
         {
-            targets.insert(Target::Row(row_or_col));
-            targets.insert(Target::Col(row_or_col));
+            targets.push(Target::Row(row_or_col));
+            targets.push(Target::Col(row_or_col));
         }
-        while !targets.is_empty()
+        while let Some(target) = targets.pop()
         {
-            let target = targets.iter().next().cloned().unwrap();
-            targets.remove(&target);
-            let changed_cells = self.improve_once(partial, &target);
-            match changed_cells
+            let is_possible = self.improve_once(partial, &target);
+            match is_possible
             {
-                Some(cells) => {
-                    for cell in cells
-                    {
-                        targets.extend(self.affected_targets_by_cell[cell as usize].clone());
-                    }        
-                },
+                Some(changed_targets) => targets.extend(changed_targets),
                 None => return false
             }
+            targets.retain(|x| *x != target);
         }
         true
     }
 
-    fn improve_once(&self, partial: &mut Solution, row_or_col: &Target) -> Option<HashSet<u8>>
+    fn improve_once(&self, partial: &mut Solution, row_or_col: &Target) -> Option<Vec<Target>>
     {
         let (min, max) = self.puzzle.get_range(&partial.assignment, &row_or_col);
         let goal = match *row_or_col
@@ -128,7 +121,7 @@ impl Solver
         let mut to_fill = goal - min;
         let mut to_clear = max - goal;
 
-        let mut changed = HashSet::new();
+        let mut changed = Vec::new();
         let cell_sizes_in_target = match *row_or_col
         {
             Target::Row(r) => &self.cell_sizes_in_rows[r],
@@ -145,18 +138,18 @@ impl Solver
                 if count > to_clear
                 {
                     *assign = CellState::Filled;
-                    seq.push(index);
                     to_fill -= count;
                 }
                 else if count > to_fill
                 {
                     *assign = CellState::Empty;
-                    seq.push(index);
                     to_clear -= count;
                 }
+                else { continue; }
+                seq.push(index);
+                changed.extend(self.affected_targets_by_cell[index as usize].clone());
             }
             if seq.is_empty() { break; }
-            changed.extend(seq.clone());
             partial.sequence.extend(seq);
         }
         Some(changed)
