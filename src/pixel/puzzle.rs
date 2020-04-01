@@ -32,8 +32,8 @@ pub const PUZZLE: Puzzle = Puzzle {
 };
 
 /*
-const GRID: usize = 10;
-const PUZZLE: Puzzle = Puzzle {
+pub const GRID: usize = 10;
+pub const PUZZLE: Puzzle = Puzzle {
     sheet: [
         [ 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
         [ 0, 0, 1, 6, 7, 7, 8, 9,10, 5],
@@ -51,8 +51,8 @@ const PUZZLE: Puzzle = Puzzle {
 */
 
 /*
-const GRID: usize = 5;
-const PUZZLE: Puzzle = Puzzle {
+pub const GRID: usize = 5;
+pub const PUZZLE: Puzzle = Puzzle {
     sheet: [
         [ 0, 1, 2, 2, 3],
         [ 0, 1, 2, 4, 4],
